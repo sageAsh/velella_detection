@@ -3,6 +3,7 @@ This repository contains the work I am doing for MBARI. more to come...
 
 ## Get started
 Create a file called .env and put your Tator API token in there. There is an example file called .env_example.
+You can find the API token and host API Token and under the server name in Tator REST API respectively.
 
  
 ## Drone/Satellite Image map correlation
