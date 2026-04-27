@@ -1,0 +1,7 @@
+#contains my api token for tator
+.env
+.git
+.gitignore
+.devcontainer
+__pycache__
+*.pyc

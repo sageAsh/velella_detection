@@ -1,0 +1,6 @@
+pandas
+numpy
+earthengine-api
+tator
+exifread
+python-dotenv #reads key-value pairs from a .env file and can set them as environment variables (use for api keys)
