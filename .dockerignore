@@ -5,3 +5,4 @@
 .devcontainer
 __pycache__
 *.pyc
+.ee_key.json
