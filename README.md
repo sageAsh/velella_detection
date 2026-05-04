@@ -1,7 +1,7 @@
 # velella_detection
 This repository contains the work I am doing for MBARI. more to come...
 
-## Get started
+## Setting up your own tokens and api things
 Create a file in /tokens called .env and put your Tator API token in there. There is an example file called .env_example you can find /tokens/.env_example. You can find the API token and host API Token and under the server name in Tator REST API respectively.
 
 Create a Google Earth Engine service account key by following this guide [here](https://developers.google.com/earth-engine/guides/service_account#:~:text=Creating%20a%20service%20account%20involves,the%20Earth%20Engine%20API%20enabled.). Rename the json file to **.ee_key.json**.
@@ -9,6 +9,11 @@ Create a Google Earth Engine service account key by following this guide [here](
 1) You must enable Earth Engine for the project. You can do this by going to the Google Cloud home page, click on API & Services, click "+ Enable API & Services", search "Earth Engine", click it, and click the Enable button. 
 2) You also must make sure the service account is registered for noncommercial use. You can click this [link](code.earthengine.google.com/register), click the first button for manage registration, and then fill out accordingly for scientific usage. I didn't want to set up a billing account so I chose the Community Tier which is "Intended for undergraduate students and other low computation users. 150 EECU-hour limit. A billing account is not required for this tier.*" 
 
+## Usage: map_correlation_script.py
+--time : Target date and time of the Satellite image in ISO format (YYYY-MM-DDTHH:MM:SS). It will find the closest image to this time
+--threshold : +/- Threshold in minutes around the satellite pass to search for drone images (default = 30)
+--lat : Center latitude of sat image (Default coordinate @ first main curve in Monterey Canyon)
+--lon : Center longitude of sat image (Default coordinate @ first main curve in Monterey Canyon)
  
 ## Drone/Satellite Image map correlation
 1. **map_correlation_script.py** is a script that will return the given satalite image with correlated drone images location pins. 
