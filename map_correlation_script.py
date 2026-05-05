@@ -100,12 +100,44 @@ def get_closest_sentinel_image(target_dt, lat, lon):
     return collection.map(add_time_diff).sort('time_diff').first()
 
 
+# --------FIND CLOSEST DRONE IMAGE--------------
+# get images from tator where date attribute is w/in drone start and end time
+def get_drone_images(drone_start: datetime, drone_end: datetime):
+    """
+    Returns list of image objects that have non-null latitude and longitude
+    """
+    # Tator attribute filters use ISO-8601 strings
+    start_str = drone_start.strftime('%Y-%m-%dT%H:%M:%SZ')
+    end_str = drone_end.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    print(f"  Querying Tator images between dates (inclusive): {start_str} to {end_str} ...")
+
+    media_list = api.get_media_list(
+        project=PROJECT_ID,
+        attribute_gte=[f"date::{start_str}"],
+        attribute_lte=[f"date::{end_str}"],
+    )
+
+    # only keep if they have valid GPS coordinates
+    valid = []
+    for m in media_list:
+        attrs = m.attributes or {}
+        lat = attrs.get('latitude')
+        lon = attrs.get('longitude')
+        date = attrs.get('date')
+        if lat is not None and lon is not None and date is not None:
+            valid.append(m)
+
+    print(f"  Found {len(media_list)} images in time frame, {len(valid)} with GPS EXIF data.")
+    return valid
+
 
 #-------------------MAIN-------------------------------------------------------
 def main():
     args      = get_args()
     target_dt = datetime.fromisoformat(args.time)
 
+    #FIND SAT IMAGE
     print(f"\nSearching for Sentinel-2 image near {args.time} ...")
     selected_sat = get_closest_sentinel_image(target_dt, args.lat, args.lon)
 
@@ -122,10 +154,24 @@ def main():
     print(f"Found: {sat_info['id']}")
     print(f"Satellite pass time: {actual_sat_dt}")
 
+    #FIND DRONE IMAGES
+    window = timedelta(minutes=args.threshold)
+    drone_start = actual_sat_dt - window
+    drone_end = actual_sat_dt + window
 
+    print(f"\nDrone image search window: {drone_start} to {drone_end}")
+
+    drone_media = get_drone_images(drone_start, drone_end)
+
+    if not drone_media:
+        print("\nNo drone images with GPS found in this time frame, try widening drone image threshold. Exiting.")
+        return
 
 # TESTING COMMAND: (chose bc flight day on 2026/04/Seymour)
-#python map_correlation_script.py --time 2026-04-17T19:00:00 --threshold 720  #aka 12 hrs...
+#python map_correlation_script.py --time 2026-04-17T19:00:00 --threshold 5760  #aka 4 days...
+# NOTE - should maybe change the threshold to be optional so it just will just increase the threshold 
+#        automatically by 1 day until it finds a drone image close enough. then instead it prints a warning message 
+#        of how far (time wise) off the drone image time is from the sat image time. 
 
 if __name__ == "__main__":
     main()
