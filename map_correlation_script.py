@@ -1,14 +1,18 @@
 import os
 from dotenv import load_dotenv
 import tator
-import ee
+import ee    #note- do not pip install ee that is a different package
 from datetime import datetime, timedelta
 import argparse
     
 '''
 INPUT: 
-    - date and time of a satelite image
-    - time threshold for drone image (**decide units later)
+    - date and time of a satelite image (ex: 2026-04-17T19:00:00)
+    - time threshold for drone image in minutes (ex: 720)
+    - coordinates lat (default at 36.780667)
+    - coordinates lon (default at 122.010139)
+
+
 
 OUTPUT: 
     - a new sat image annotated with the location of the drone images as well as the drone 
@@ -46,8 +50,8 @@ else:
     # ee.Initialize(project=earth_id)
 
 
-#----------------------------------HELPER FUNCTIONS---------------------------------------------------------
-# get CLI args--------------
+#----------------------------------FUNCTIONS---------------------------------------------------------
+# --------GET CLI ARGS--------------
 def get_args():
     parser = argparse.ArgumentParser(description="Map Drone imagery over Sentinel-2 Satellite data")
      
@@ -65,6 +69,35 @@ def get_args():
 
     return parser.parse_args()
 
+# --------FIND CLOSEST SAT IMAGE--------------
+# find closest sat image with in 30 days to actually find an iimage w low cloud cover
+def get_closest_sentinel_image(target_dt, lat, lon):
+    target_ms   = target_dt.timestamp() * 1000
+    start_date  = (target_dt - timedelta(days=30)).strftime('%Y-%m-%d')
+    end_date    = (target_dt + timedelta(days=30)).strftime('%Y-%m-%d')
+ 
+    poi = ee.Geometry.Point([lon, lat])
+    collection = (
+        ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+        .filterBounds(poi)
+        .filterDate(start_date, end_date)
+        # Pre-filter to get less cloudy granules.
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20)) #you can see thru with 20-30% cloud cover
+    )
+ 
+    #check if there are even any images w/in 30 days of time specified (like if its a particularily cloudy month)
+    count = collection.size().getInfo()
+    if count == 0:
+        raise RuntimeError(
+            f"No Sentinel-2 images found near ({lat}, {lon}) within ±30 days of "
+            f"{target_dt.date()} with <20% cloud cover."
+        )
+
+    def add_time_diff(img):
+        diff = ee.Number(img.get('system:time_start')).subtract(target_ms).abs()
+        return img.set('time_diff', diff)
+
+    return collection.map(add_time_diff).sort('time_diff').first()
 
 
 
@@ -72,7 +105,27 @@ def get_args():
 def main():
     args      = get_args()
     target_dt = datetime.fromisoformat(args.time)
-    print(target_dt)
+
+    print(f"\nSearching for Sentinel-2 image near {args.time} ...")
+    selected_sat = get_closest_sentinel_image(target_dt, args.lat, args.lon)
+
+    sat_info = selected_sat.getInfo()
+    if sat_info is None:
+        raise RuntimeError(
+            "Earth Engine returned None, the collection might be empty.\n"
+            "Try a different --time or a wider area."
+        )
+
+    actual_sat_ms = sat_info['properties']['system:time_start']
+    actual_sat_dt = datetime.fromtimestamp(actual_sat_ms / 1000.0)
+
+    print(f"Found: {sat_info['id']}")
+    print(f"Satellite pass time: {actual_sat_dt}")
+
+
+
+# TESTING COMMAND: (chose bc flight day on 2026/04/Seymour)
+#python map_correlation_script.py --time 2026-04-17T19:00:00 --threshold 720  #aka 12 hrs...
 
 if __name__ == "__main__":
     main()
